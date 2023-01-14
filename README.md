@@ -20,6 +20,13 @@ Supported OS
 - Linux
 - macOS (Intel)
 
+### Installation on macOS with Brew
+
+```shell
+$ brew tap don41382/api-delay-simulator
+$ brew install api-delay-simulator
+```
+
 ## how to run
 
 Just execute the downloaded binary, e.g. for Windows
