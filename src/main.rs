@@ -1,7 +1,6 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
 use std::{sync::Mutex, time::Duration};
-use rlimit::Resource;
 use thousands::Separable;
 
 #[derive(Parser, Debug)]
@@ -29,7 +28,14 @@ async fn wait(path: web::Path<u64>, data: web::Data<AppState>) -> impl Responder
     HttpResponse::Ok().body(format!("waited {ms} milliseconds."))
 }
 
+#[cfg(target_os = "windows")]
 fn open_file_limit() -> Result<u64,String> {
+    Err("not supported for windows")
+}
+
+#[cfg(not(target_os = "windows"))]
+fn open_file_limit() -> Result<u64,String> {
+    use rlimit::Resource;
     let (limit, _) =
         rlimit::getrlimit(Resource::NOFILE).map_err(|e| e.to_string())?;
     Ok(limit)
@@ -38,12 +44,8 @@ fn open_file_limit() -> Result<u64,String> {
 fn print_limit_if_available(limit: Result<u64, String>) {
     match limit {
         Ok(limit) =>
-            if limit < 256 {
-                println!("\x1b[93mNote\x1b[0m: You file limit is set to {}. This will limit the maximum amount of concurrent current connections.", limit.separate_with_commas());
-            } else {
-                println!("\x1b[93mNote\x1b[0m: You file limit is set to {}.", limit.separate_with_commas());
-            },
-        Err(_) => 
+            println!("\x1b[93mNote\x1b[0m: You file limit is set to {}. This will limit the maximum amount of concurrent current connections.", limit.separate_with_commas()),
+        Err(_) =>
             println!("\x1b[93mNote\x1b[0m: Unable to check file limit. This might limit the possible concurrent connections."),
     }
 }
