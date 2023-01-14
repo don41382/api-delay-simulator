@@ -10,9 +10,15 @@ $ curl -X GET http://localhost:3000/1500
 ```
 will response after 1.5 seconds.
 
-## Installation
+## Installation & Support
 
 There is no installation required. Just download the [latest version](https://github.com/don41382/api-delay-simulator/releases) from the current releases for your operating system.
+
+Supported OS
+
+- Windows x86
+- Linux
+- macOS (Intel)
 
 ## how to run
 
