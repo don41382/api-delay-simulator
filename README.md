@@ -1,5 +1,7 @@
 # api-delay-simulator
 
+![current build status](https://github.com/don41382/api-delay-simulator/actions/workflows/build.yml/badge.svg)
+
 A http server, which accepts http requests with a given delay to simulate long lasting http requests.
 
 For example a request to the server:
