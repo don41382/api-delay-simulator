@@ -36,6 +36,17 @@ Options:
 ```
 
 ## development
+
+Checkout the git project and run cargo.
+
 ```shell
 $ cargo run
+```
+
+In order to build the `api-delay-simulator` for windows on mac, you'll have to do the following:
+
+```shell
+ $ brew install mingw-w64
+ $ rustup target add x86_64-pc-windows-gnu
+ $ cargo build --target=x86_64-pc-windows-gnu --release
 ```

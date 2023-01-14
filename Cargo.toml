@@ -9,6 +9,9 @@ edition = "2021"
 strip = true
 opt-level = "z"
 
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+
 [dependencies]
 actix-web = "4.2.1"
 clap = { version = "4.1.0", features = ["derive", "color"] }

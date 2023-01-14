@@ -30,7 +30,7 @@ async fn wait(path: web::Path<u64>, data: web::Data<AppState>) -> impl Responder
 
 #[cfg(target_os = "windows")]
 fn open_file_limit() -> Result<u64,String> {
-    Err("not supported for windows")
+    Err("not supported for windows".to_string())
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -46,7 +46,7 @@ fn print_limit_if_available(limit: Result<u64, String>) {
         Ok(limit) =>
             println!("\x1b[93mNote\x1b[0m: You file limit is set to {}. This will limit the maximum amount of concurrent current connections.", limit.separate_with_commas()),
         Err(_) =>
-            println!("\x1b[93mNote\x1b[0m: Unable to check file limit. This might limit the possible concurrent connections."),
+            println!("Note: Unable to check file limit. This might limit the possible concurrent connections."),
     }
 }
 
