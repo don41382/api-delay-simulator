@@ -1,6 +1,7 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
 use std::{sync::Mutex, time::Duration};
+use rlimit::Resource;
 use thousands::Separable;
 
 #[derive(Parser, Debug)]
@@ -29,10 +30,8 @@ async fn wait(path: web::Path<u64>, data: web::Data<AppState>) -> impl Responder
 }
 
 fn open_file_limit() -> Result<u64,String> {
-    use nix::sys::resource::{getrlimit, Resource};
-    let (limit, _) = 
-        getrlimit(Resource::RLIMIT_NOFILE)
-        .map_err(|e| e.to_string())?;
+    let (limit, _) =
+        rlimit::getrlimit(Resource::NOFILE).map_err(|e| e.to_string())?;
     Ok(limit)
 }
 
