@@ -11,21 +11,35 @@ struct Args {
 }
 
 struct AppState {
+    port: u16,
     count: Mutex<u64>,
 }
 
 #[get("/{duration}")]
-async fn wait(path: web::Path<u64>, data: web::Data<AppState>) -> impl Responder {
-    let ms = path.into_inner();
+async fn wait_service(path: web::Path<String>, data: web::Data<AppState>) -> impl Responder {
+    let parsed_path =
+        path.into_inner().parse::<u64>();
 
-    {
-        let mut call_count = data.count.lock().unwrap();
-        *call_count += 1;
-        println!("#{}: wait for {}ms ...", call_count, ms);
+    match parsed_path {
+        Ok(wait_duration) => {
+            {
+                let mut call_count = data.count.lock().unwrap();
+                *call_count += 1;
+                println!("#{}: wait for {}ms ...", call_count, wait_duration);
+            }
+
+            actix_web::rt::time::sleep(Duration::from_millis(wait_duration)).await;
+            HttpResponse::Ok().body(format!("waited {wait_duration} milliseconds."))
+        }
+        Err(_) => {
+            HttpResponse::BadRequest().body(format!("please provide a valid duration, e.g. http://localhost:{}/1000 to delay the response by a second", data.port))
+        },
     }
+}
 
-    actix_web::rt::time::sleep(Duration::from_millis(ms)).await;
-    HttpResponse::Ok().body(format!("waited {ms} milliseconds."))
+#[get("/")]
+async fn help_service(data: web::Data<AppState>) -> impl Responder {
+    HttpResponse::Ok().body(format!("Please request with a delay in millis in the path, e.g. http://localhost:{}/1000 to delay the response by a second.", data.port))
 }
 
 #[cfg(target_os = "windows")]
@@ -56,13 +70,19 @@ async fn main() -> std::io::Result<()> {
     let open_file_limit = open_file_limit();
 
     let counter = web::Data::new(AppState {
+        port: args.port,
         count: Mutex::new(0),
     });
 
     println!("Listening on port {} ...", args.port);
     print_limit_if_available(open_file_limit);
 
-    HttpServer::new(move || App::new().app_data(counter.clone()).service(wait))
+    HttpServer::new(move ||
+            App::new()
+                .app_data(counter.clone())
+                .service(wait_service)
+                .service(help_service)
+         )
         .bind(("127.0.0.1", args.port))?
         .run()
         .await
