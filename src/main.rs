@@ -1,17 +1,17 @@
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use clap::Parser;
 use std::{sync::Mutex, time::Duration};
+
+use actix_web::{App, get, HttpResponse, HttpServer, Responder, web};
+use clap::{arg, ColorChoice, command, value_parser};
 use thousands::Separable;
 
-#[derive(Parser, Debug)]
-#[command(author, version, about = "Starts an api server, which will response to requests with a given delay.\n\nIn example, a GET request to http://localhost:3000/1000 will response after 1 second.", long_about = None)]
-struct Args {
-    #[arg(default_value_t = 3000)]
-    port: u16,
+fn example_msg(port: u16) -> String {
+    format!("Example: curl http://localhost:{port}/1000, will response after 1 second of delay.").to_string()
 }
 
+const ABOUT_MSG: &str = "Starts an api server, which will simulate latency to requests with a given delay.";
+
 struct AppState {
-    port: u16,
+    http_port: u16,
     count: Mutex<u64>,
 }
 
@@ -32,58 +32,54 @@ async fn wait_service(path: web::Path<String>, data: web::Data<AppState>) -> imp
             HttpResponse::Ok().body(format!("waited {wait_duration} milliseconds."))
         }
         Err(_) => {
-            HttpResponse::BadRequest().body(format!("please provide a valid duration, e.g. http://localhost:{}/1000 to delay the response by a second", data.port))
-        },
+            HttpResponse::BadRequest().body(format!("please provide a valid duration, {}", example_msg(data.http_port)))
+        }
     }
 }
 
 #[get("/")]
 async fn help_service(data: web::Data<AppState>) -> impl Responder {
-    HttpResponse::Ok().body(format!("Please request with a delay in millis in the path, e.g. http://localhost:{}/1000 to delay the response by a second.", data.port))
+    HttpResponse::Ok().body(format!("{}", example_msg(data.http_port)))
 }
 
 #[cfg(target_os = "windows")]
-fn open_file_limit() -> Result<u64,String> {
+fn open_file_limit() -> Result<u64, String> {
     Err("not supported for windows".to_string())
 }
 
 #[cfg(not(target_os = "windows"))]
-fn open_file_limit() -> Result<u64,String> {
+fn open_file_limit() -> Result<u64, String> {
     use rlimit::Resource;
     let (limit, _) =
         rlimit::getrlimit(Resource::NOFILE).map_err(|e| e.to_string())?;
     Ok(limit)
 }
 
-fn print_limit_if_available(limit: Result<u64, String>) {
-    match limit {
-        Ok(limit) =>
-            println!("\x1b[93mNote\x1b[0m: You file limit is set to {}. This will limit the maximum amount of concurrent current connections.", limit.separate_with_commas()),
-        Err(_) =>
-            println!("Note: Unable to check file limit. This might limit the possible concurrent connections."),
-    }
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let args = Args::parse();
-    let open_file_limit = open_file_limit();
+    let arguments = command!()
+        .color(ColorChoice::Auto)
+        .about(format!("{ABOUT_MSG}\n\n{}", example_msg(3000)))
+        .arg(arg!([port] "server port").required(false).default_value("3000").value_parser(value_parser!(u16)))
+        .get_matches();
 
-    let counter = web::Data::new(AppState {
-        port: args.port,
+    let http_port = arguments.get_one::<u16>("port").expect("port is required");
+
+    let open_file_limit = open_file_limit();
+    let request_counter = web::Data::new(AppState {
+        http_port: *http_port,
         count: Mutex::new(0),
     });
 
-    println!("Listening on port {} ...", args.port);
-    print_limit_if_available(open_file_limit);
+    println!("Listening on port {}, file limit {} ...", *http_port, open_file_limit.map_or("unknown".to_string(), |x| x.separate_with_commas()));
 
     HttpServer::new(move ||
-            App::new()
-                .app_data(counter.clone())
-                .service(wait_service)
-                .service(help_service)
-         )
-        .bind(("127.0.0.1", args.port))?
+        App::new()
+            .app_data(request_counter.clone())
+            .service(wait_service)
+            .service(help_service)
+    )
+        .bind(("127.0.0.1", *http_port))?
         .run()
         .await
 }
